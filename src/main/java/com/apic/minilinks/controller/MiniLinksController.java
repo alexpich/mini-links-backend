@@ -2,10 +2,7 @@ package com.apic.minilinks.controller;
 
 import com.apic.minilinks.generator.UniqueIdGenerator;
 import com.apic.minilinks.model.UrlDto;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import org.apache.commons.validator.routines.UrlValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,13 +32,19 @@ public class MiniLinksController {
     @Autowired
     public MiniLinksController(UniqueIdGenerator uniqueIdGenerator) {
         this.uniqueIdGenerator = uniqueIdGenerator;
-        // Manually create an instance of UniqueIdGenerator
-//        this.uniqueIdGenerator = new UniqueIdGenerator(15, 15);
-//        this.uniqueIdGenerator = new UniqueIdGenerator(, 15);
     }
 
     @PostMapping
     public ResponseEntity<String> create(@RequestBody final String url) {
+        // Using commons-validator library to validate the input URL.
+        final UrlValidator urlValidator
+                = new UrlValidator(new String[]{"http", "https"});
+        if (!urlValidator.isValid(url)) {
+            // Invalid url return HTTP 400 bad request.
+            return ResponseEntity.badRequest().body("Invalid URL."
+                    + " Must include http:// or https://");
+        }
+
         long uniqueId = uniqueIdGenerator.generateUniqueId();
         final String base62Key = UrlDto.encodeBase62(uniqueId);
         redisTemplate.opsForValue().set(base62Key, url);

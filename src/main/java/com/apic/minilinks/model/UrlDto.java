@@ -27,7 +27,8 @@ public class UrlDto {
 
     // Helper method to convert a long value to base62 format
     public static String encodeBase62(long value) {
-        String characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        String characters
+                = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         int base = characters.length();
         StringBuilder sb = new StringBuilder();
 
