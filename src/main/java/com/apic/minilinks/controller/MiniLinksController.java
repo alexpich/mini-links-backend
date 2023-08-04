@@ -2,6 +2,8 @@ package com.apic.minilinks.controller;
 
 import com.apic.minilinks.generator.UniqueIdGenerator;
 import com.apic.minilinks.model.UrlDto;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.Objects;
 import org.apache.commons.validator.routines.UrlValidator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +44,8 @@ public class MiniLinksController {
         if (!urlValidator.isValid(url)) {
             // Invalid url return HTTP 400 bad request.
             return ResponseEntity.badRequest().body("Invalid URL."
-                    + " Must include http:// or https://");
+                    + " Please make sure the url has a proper prefix"
+                    + " http:// or https://");
         }
 
         long uniqueId = uniqueIdGenerator.generateUniqueId();
@@ -52,9 +55,11 @@ public class MiniLinksController {
     }
 
     @GetMapping(value = "/{id}")
-    public ResponseEntity getUrl(@PathVariable final String id) {
+    public ResponseEntity getUrl(@PathVariable final String id,
+            HttpServletResponse response) throws IOException {
         // Get the URL string from the cache.
         final String url = redisTemplate.opsForValue().get(id);
+
         if (Objects.isNull(url)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     new Exception("No such key exists")
@@ -63,6 +68,7 @@ public class MiniLinksController {
             log.info("URL retrieved = {}", url);
         }
 
+        response.sendRedirect(url);
         return ResponseEntity.ok(url);
     }
 
