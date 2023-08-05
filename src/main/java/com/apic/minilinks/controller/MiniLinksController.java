@@ -2,6 +2,8 @@ package com.apic.minilinks.controller;
 
 import com.apic.minilinks.generator.UniqueIdGenerator;
 import com.apic.minilinks.model.UrlDto;
+import com.apic.minilinks.service.RateLimiterService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Objects;
@@ -29,6 +31,9 @@ public class MiniLinksController {
     @Value("${redis.ttl}")
     private long ttl;
 
+    @Autowired
+    private RateLimiterService rateLimiterService;
+
     private final UniqueIdGenerator uniqueIdGenerator;
 
     @Autowired
@@ -37,7 +42,9 @@ public class MiniLinksController {
     }
 
     @PostMapping
-    public ResponseEntity<String> create(@RequestBody final String url) {
+    public ResponseEntity<String> create(@RequestBody final String url,
+            HttpServletRequest request) {
+
         // Using commons-validator library to validate the input URL.
         final UrlValidator urlValidator
                 = new UrlValidator(new String[]{"http", "https"});
@@ -46,6 +53,15 @@ public class MiniLinksController {
             return ResponseEntity.badRequest().body("Invalid URL."
                     + " Please make sure the url has a proper prefix"
                     + " http:// or https://");
+        }
+
+        String ipAddress = getClientIpAddress(request);
+
+        if (!rateLimiterService.allowRequest(ipAddress)) {
+            System.out.println("\n****rate limit exceeded");
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(
+                    "Rate limit exceeded. Try again later."
+            );
         }
 
         long uniqueId = uniqueIdGenerator.generateUniqueId();
@@ -70,6 +86,28 @@ public class MiniLinksController {
 
         response.sendRedirect(url);
         return ResponseEntity.ok(url);
+    }
+
+    // Helper method to get the client's IP address from the request
+    private String getClientIpAddress(HttpServletRequest request) {
+        String ipAddress = request.getHeader("X-Forwarded-For");
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+            ipAddress = request.getHeader("Proxy-Client-IP");
+        }
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+            ipAddress = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+            ipAddress = request.getHeader("HTTP_CLIENT_IP");
+        }
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+            ipAddress = request.getHeader("HTTP_X_FORWARDED_FOR");
+        }
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+            ipAddress = request.getRemoteAddr();
+        }
+        System.out.println("\n"+ipAddress);
+        return ipAddress;
     }
 
 }
